@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload de Imagens</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Upload de Imagens</h1>
+
+        <form action="/" method="POST" enctype="multipart/form-data">
+            <label for="file">Escolha uma imagem:</label>
+            <input type="file" name="file" id="file" required>
+            <br><br>
+            <label for="comment">Comentário:</label>
+            <textarea name="comment" id="comment" required></textarea>
+            <br><br>
+            <button type="submit">Enviar</button>
+        </form>
+
+        <h2>Imagens Carregadas</h2>
+        <ul>
+            {% for upload in uploads %}
+            <li>
+                <!-- Exibe a imagem usando o caminho correto -->
+                <img src="{{ url_for('static', filename='uploads/' + upload[1]) }}" alt="Imagem" />
+                <p>{{ upload[2] }}</p>
+                <form action="{{ url_for('delete', image_id=upload[0]) }}" method="POST">
+                    <input type="password" name="password" placeholder="Senha" required>
+                    <button type="submit">Excluir</button>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</body>
+</html>
