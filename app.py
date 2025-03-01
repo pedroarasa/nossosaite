@@ -2,6 +2,7 @@ import os
 from flask import Flask, request, render_template, redirect, url_for
 from werkzeug.utils import secure_filename
 import psycopg2
+from psycopg2 import sql
 
 app = Flask(__name__)
 
@@ -10,10 +11,13 @@ app.config["UPLOAD_FOLDER"] = "static/uploads"  # Pasta onde as imagens serão s
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # Limite de 5MB
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
+# Usando a variável de ambiente para configurar a conexão com o banco de dados
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if DATABASE_URL is None:
+    raise ValueError("A variável de ambiente 'DATABASE_URL' não está configurada")
+
 # Conectar ao banco de dados
-conn = psycopg2.connect(
-    "postgresql://neondb_owner:npg_izJKD7Qm0kEh@ep-wandering-resonance-a9e1300q-pooler.gwc.azure.neon.tech/neondb?sslmode=require"
-)
+conn = psycopg2.connect(DATABASE_URL)
 
 # Função para verificar se o arquivo é uma imagem válida
 def allowed_file(filename):
