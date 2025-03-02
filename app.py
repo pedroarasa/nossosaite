@@ -2,7 +2,6 @@ import os
 from flask import Flask, request, render_template, redirect, url_for
 from werkzeug.utils import secure_filename
 import psycopg2
-from psycopg2 import sql
 
 app = Flask(__name__)
 
@@ -22,6 +21,11 @@ conn = psycopg2.connect(DATABASE_URL)
 # Função para verificar se o arquivo é uma imagem válida
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+# Função para verificar se a imagem existe fisicamente
+def image_exists(image_filename):
+    """Verifica se a imagem existe fisicamente no diretório"""
+    return os.path.exists(os.path.join(app.config["UPLOAD_FOLDER"], image_filename))
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -50,6 +54,9 @@ def index():
     uploads = cursor.fetchall()
     cursor.close()
 
+    # Verifica se a imagem existe fisicamente antes de exibir
+    uploads = [(upload[0], upload[1], upload[2]) for upload in uploads if image_exists(upload[1])]
+
     return render_template("index.html", uploads=uploads)
 
 @app.route("/delete/<int:image_id>", methods=["POST"])
@@ -67,11 +74,12 @@ def delete(image_id):
         conn.commit()
         cursor.close()
 
-        # Exclui a imagem fisicamente
-        try:
-            os.remove(os.path.join(app.config["UPLOAD_FOLDER"], image_url))  # Remove a imagem da pasta
-        except FileNotFoundError:
-            pass
+        # Exclui a imagem fisicamente, se ela existir
+        if image_exists(image_url):
+            try:
+                os.remove(os.path.join(app.config["UPLOAD_FOLDER"], image_url))  # Remove a imagem da pasta
+            except FileNotFoundError:
+                pass  # Caso o arquivo já tenha sido removido, não faça nada
 
     return redirect(url_for("index"))
 
