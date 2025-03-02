@@ -2,6 +2,7 @@ import os
 from flask import Flask, request, render_template, redirect, url_for
 from werkzeug.utils import secure_filename
 import psycopg2
+from psycopg2 import sql
 
 app = Flask(__name__)
 
@@ -15,8 +16,9 @@ DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL is None:
     raise ValueError("A variável de ambiente 'DATABASE_URL' não está configurada")
 
-# Conectar ao banco de dados
-conn = psycopg2.connect(DATABASE_URL)
+# Função para conectar ao banco de dados
+def get_db_connection():
+    return psycopg2.connect(DATABASE_URL)
 
 # Função para verificar se o arquivo é uma imagem válida
 def allowed_file(filename):
@@ -40,22 +42,34 @@ def index():
             file.save(file_path)
 
             # Inserir dados no banco com apenas o nome do arquivo
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO uploads (image_url, comment) VALUES (%s, %s)",
-                (filename, comment)  # Armazenamos apenas o nome do arquivo
-            )
-            conn.commit()
-            cursor.close()
+            try:
+                conn = get_db_connection()
+                cursor = conn.cursor()
+                cursor.execute(
+                    "INSERT INTO uploads (image_url, comment) VALUES (%s, %s)",
+                    (filename, comment)  # Armazenamos apenas o nome do arquivo
+                )
+                conn.commit()
+                cursor.close()
+                conn.close()
+            except Exception as e:
+                print(f"Erro ao salvar no banco de dados: {e}")
+                # Idealmente, registre o erro em um log de erros
 
     # Pega as imagens do banco
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM uploads")
-    uploads = cursor.fetchall()
-    cursor.close()
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM uploads")
+        uploads = cursor.fetchall()
+        cursor.close()
+        conn.close()
 
-    # Verifica se a imagem existe fisicamente antes de exibir
-    uploads = [(upload[0], upload[1], upload[2]) for upload in uploads if image_exists(upload[1])]
+        # Verifica se a imagem existe fisicamente antes de exibir
+        uploads = [(upload[0], upload[1], upload[2]) for upload in uploads if image_exists(upload[1])]
+    except Exception as e:
+        print(f"Erro ao buscar imagens no banco de dados: {e}")
+        uploads = []
 
     return render_template("index.html", uploads=uploads)
 
@@ -64,22 +78,28 @@ def delete(image_id):
     password = request.form["password"]
     
     # Verifica a senha
-    if password == "123ok":
-        cursor = conn.cursor()
-        cursor.execute("SELECT image_url FROM uploads WHERE id = %s", (image_id,))
-        image_url = cursor.fetchone()[0]
+    if password == "123ok":  # Melhorar a segurança, substituindo por uma abordagem adequada
+        try:
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT image_url FROM uploads WHERE id = %s", (image_id,))
+            image_url = cursor.fetchone()[0]
 
-        # Exclui a imagem do banco de dados
-        cursor.execute("DELETE FROM uploads WHERE id = %s", (image_id,))
-        conn.commit()
-        cursor.close()
+            # Exclui a imagem do banco de dados
+            cursor.execute("DELETE FROM uploads WHERE id = %s", (image_id,))
+            conn.commit()
+            cursor.close()
+            conn.close()
 
-        # Exclui a imagem fisicamente, se ela existir
-        if image_exists(image_url):
-            try:
-                os.remove(os.path.join(app.config["UPLOAD_FOLDER"], image_url))  # Remove a imagem da pasta
-            except FileNotFoundError:
-                pass  # Caso o arquivo já tenha sido removido, não faça nada
+            # Exclui a imagem fisicamente, se ela existir
+            if image_exists(image_url):
+                try:
+                    os.remove(os.path.join(app.config["UPLOAD_FOLDER"], image_url))  # Remove a imagem da pasta
+                except FileNotFoundError:
+                    pass  # Caso o arquivo já tenha sido removido, não faça nada
+        except Exception as e:
+            print(f"Erro ao excluir imagem: {e}")
+            # Idealmente, registre o erro em um log de erros
 
     return redirect(url_for("index"))
 
