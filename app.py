@@ -6,7 +6,7 @@ from psycopg2 import sql
 
 app = Flask(__name__)
 
-# Configurações
+# Configurações de upload
 app.config["UPLOAD_FOLDER"] = "static/uploads"  # Pasta onde as imagens serão salvas
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # Limite de 5MB
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -76,4 +76,6 @@ def delete(image_id):
     return redirect(url_for("index"))
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Pega a variável de ambiente PORT ou usa a 5000 por padrão
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host="0.0.0.0", port=port)
